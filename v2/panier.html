@@ -8,6 +8,8 @@
 
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('consent','default',{analytics_storage:'denied',ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',wait_for_update:500});</script>
 <script>(function(w,d,s,l,i){if(i.indexOf('XXXX')>-1)return;w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s);j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-MDXL86W5');</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap">
 <link rel="stylesheet" href="style.css">
 
 </head>
@@ -24,10 +26,13 @@
   <a class="cart-link" href="panier.html"><span aria-hidden="true">Panier (<span id="cart-count">0</span>)</span><span id="cart-sr" class="sr-only">Panier, 0 article</span></a>
 </header>
 <main id="contenu" tabindex="-1">
+<div id="promo-slot" style="min-height:120px"></div>
 <h1>Mon panier</h1>
 <div id="cart-zone">
 <table class="cart"><thead><tr><th>Article</th><th>Quantité</th><th>Prix</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="lines"></tbody></table>
+<p>Remise DUO (-10 % dès 2 articles, appliquée automatiquement) : <span id="duo"></span></p>
 <p>Livraison : <span id="ship"></span> (offerte dès 60 €)</p>
+<p><input type="checkbox" id="gift" style="width:auto"> <label for="gift" style="display:inline;font-weight:400">Ajouter un emballage cadeau (+2,90 €), facultatif</label></p>
 <p><button type="button" id="promo-toggle" class="btn secondary" aria-expanded="false" aria-controls="promo-zone">Vous avez un code ?</button></p><div id="promo-zone" hidden><label for="promo">Code promo</label><input id="promo" style="max-width:220px"> <button type="button" class="btn secondary">Appliquer</button></div>
 <p class="price">Total : <span id="total"></span></p>
 <button type="button" id="checkout" class="btn">Commander</button>
@@ -37,7 +42,7 @@
 <img src="img/separateur.svg" alt="" width="600" height="20" style="margin:24px auto;opacity:.6">
 </main>
 <footer class="site">
-  <p><a href="cgv.html">CGV</a> <a href="mentions.html">Mentions légales</a> <a href="livraison.html">Livraison et retours</a> <a href="accessibilite.html">Accessibilité : partiellement conforme</a></p>
+  <p><a href="cgv.html">CGV</a> <a href="mentions.html">Mentions légales</a> <a href="livraison.html">Livraison et retours</a> <a href="rappel.html">Être rappelé par une styliste</a> <a href="accessibilite.html">Accessibilité : partiellement conforme</a></p>
   <form onsubmit="return false"><label for="nl">Recevoir la lettre d'information</label><input id="nl" type="email" autocomplete="email" style="max-width:260px"> <button type="submit" class="btn secondary">S'inscrire</button></form>
   <p class="info">© 2026 Verlune, marque fictive créée pour tester des outils d'audit.</p>
 </footer>

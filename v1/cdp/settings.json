@@ -1,0 +1,21 @@
+{
+  "source": "verlune-web",
+  "destinations": [
+    {
+      "name": "Meta Conversions API",
+      "enabled": true
+    },
+    {
+      "name": "Google Ads Enhanced Conversions",
+      "enabled": true
+    },
+    {
+      "name": "TikTok Events API",
+      "enabled": true
+    },
+    {
+      "name": "Entrepôt de données",
+      "enabled": true
+    }
+  ]
+}

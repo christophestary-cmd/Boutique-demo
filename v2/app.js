@@ -22,6 +22,7 @@ if(!getCookie('panier_session')) setCookie('panier_session', rid(), 1);
 if(!getCookie('audimetre_id')) setCookie('audimetre_id', rid(), 395);
 setCookie('audimetre_privacy','exempt',395);
 cartCount();
+setTimeout(function(){var b=document.createElement('p');b.className='notice';b.style.padding='22px 12px';b.textContent='Nouveautés d’automne : découvrez la collection et nos essentiels en lin et en laine.';var slot=document.getElementById('promo-slot');if(slot){slot.appendChild(b)}else{var m=document.querySelector('main');if(m)m.insertBefore(b,m.firstChild)}},1200);
 setTimeout(function(){$$('img.blur').forEach(function(i){i.classList.remove('blur')})},2000);
 
 function readChoice(){try{return JSON.parse(LS.getItem('choix_cookies'))}catch(e){return null}}
@@ -47,6 +48,18 @@ function cmp(){
   $('#cmp-save').onclick=function(){saveChoice({analytics:$('#c-an').checked,ads:$('#c-ads').checked})};
 }
 cmp();
+
+function beacon(u){try{navigator.sendBeacon&&navigator.sendBeacon(u)}catch(e){}}
+function idCookie(k){var id=getCookie(k);if(!id){id=rid();setCookie(k,id,395)}return id}
+function idLS(k){var id=LS.getItem(k);if(!id){id=rid();LS.setItem(k,id)}return id}
+function tools(){
+  var c=readChoice(), pg=encodeURIComponent(location.pathname);
+  if(c&&c.analytics){beacon('https://replaylab.example/rec?sid='+idCookie('_rpl')+'&p='+pg);beacon(BASE+'cdp/collect?anon='+idLS('cdp_anon_id')+'&e=page&p='+pg+'&consent=analytics')}
+  if(c&&c.ads){beacon('https://recoplus.example/events?uid='+idLS('recoplus_uid')+'&p='+pg);beacon('https://publink.example/px?id='+idCookie('_plk')+'&ev=PageView&p='+pg)}
+  beacon('https://perfwatch.example/rum?lcp=1&p='+pg);
+}
+tools();
+var _saveChoice=saveChoice; saveChoice=function(c){_saveChoice(c);tools()};
 
 function item(p,size,qty){return {item_id:p.slug,item_name:p.name,item_brand:'Verlune',item_category:p.rayon,item_variant:size||undefined,price:p.price,quantity:qty||1}}
 function evViewItem(p){push({ecommerce:null});push({event:'view_item',ecommerce:{currency:'EUR',value:p.price,items:[item(p)]}})}
@@ -111,16 +124,18 @@ function cart(){
   if(!c.length){$('#cart-zone').innerHTML='<p>Votre panier est vide. <a href="index.html">Continuer mes achats</a></p>';return}
   body.innerHTML=c.map(function(l,i){var p=bySlug(l.slug);var lt=p.price*l.qty;total+=lt;
     return '<tr><td>'+p.name+'<br><span class="info">Taille '+l.size+'</span></td><td>'+l.qty+'</td><td>'+fmt(lt)+'</td><td><button type="button" class="btn secondary rm" data-i="'+i+'">Retirer<span class="sr-only"> '+p.name+'</span></button></td></tr>'}).join('');
-  var ship=total>=60?0:4.9; $('#ship').textContent=ship?fmt(ship):'Offerte'; $('#total').textContent=fmt(total+ship);
+  var qty=c.reduce(function(a,l){return a+l.qty},0), duo=qty>=2?Math.round(total*10)/100:0, net=total-duo;
+  var ship=net>=60?0:4.9; $('#ship').textContent=ship?fmt(ship):'Offerte'; $('#duo').textContent=duo?'- '+fmt(duo):'—';
+  function tot(){var g=$('#gift')&&$('#gift').checked?2.9:0;SS.setItem('cadeau',g?'1':'0');$('#total').textContent=fmt(net+ship+g)} tot(); var gf=$('#gift'); if(gf)gf.onchange=tot;
   $$('.rm').forEach(function(b){b.onclick=function(){var c=getCart();c.splice(+b.dataset.i,1);setCart(c);cart();$('#live').textContent='Article retiré du panier.'}});
-  push({ecommerce:null});push({event:'view_cart',ecommerce:{currency:'EUR',value:total,items:c.map(function(l){return item(bySlug(l.slug),l.size,l.qty)})}});
+  push({ecommerce:null});push({event:'view_cart',ecommerce:{currency:'EUR',value:net,coupon:duo?'DUO':undefined,discount:duo||undefined,items:c.map(function(l){return item(bySlug(l.slug),l.size,l.qty)})}});
   var t=$('#promo-toggle'); if(t)t.onclick=function(){var z=$('#promo-zone');z.hidden=!z.hidden;t.setAttribute('aria-expanded',String(!z.hidden))};
   $('#checkout').onclick=function(){location.href='commande.html'};
 }
 function checkout(){
   var c=getCart(); if(!c.length){location.href='panier.html';return}
-  var total=c.reduce(function(a,l){return a+bySlug(l.slug).price*l.qty},0);
-  push({ecommerce:null});push({event:'begin_checkout',ecommerce:{currency:'EUR',value:total,items:c.map(function(l){return item(bySlug(l.slug),l.size,l.qty)})}});
+  var total=c.reduce(function(a,l){return a+bySlug(l.slug).price*l.qty},0), q=c.reduce(function(a,l){return a+l.qty},0), duo=q>=2?Math.round(total*10)/100:0;
+  push({ecommerce:null});push({event:'begin_checkout',ecommerce:{currency:'EUR',value:total-duo,coupon:duo?'DUO':undefined,items:c.map(function(l){return item(bySlug(l.slug),l.size,l.qty)})}});
   $('#form').onsubmit=function(e){e.preventDefault();var first=null;
     $$('#form input[required]').forEach(function(i){var er=$('#'+i.id+'-err');if(!i.value.trim()){i.setAttribute('aria-invalid','true');if(er)er.textContent='Ce champ est obligatoire.';if(!first)first=i}else{i.removeAttribute('aria-invalid');if(er)er.textContent=''}});
     if(first){first.focus();return}
@@ -133,9 +148,9 @@ function confirm(){
   $('#order-id').textContent=o.id;
   var sent=JSON.parse(LS.getItem('achats_envoyes')||'[]');
   if(sent.indexOf(o.id)===-1){
-    var total=o.lines.reduce(function(a,l){return a+bySlug(l.slug).price*l.qty},0);
-    var ship=total>=60?0:4.9;
-    push({ecommerce:null});push({event:'purchase',ecommerce:{transaction_id:o.id,currency:'EUR',value:total,shipping:ship,items:o.lines.map(function(l){return item(bySlug(l.slug),l.size,l.qty)})}});
+    var total=o.lines.reduce(function(a,l){return a+bySlug(l.slug).price*l.qty},0), q=o.lines.reduce(function(a,l){return a+l.qty},0), duo=q>=2?Math.round(total*10)/100:0, net=total-duo;
+    var ship=net>=60?0:4.9;
+    push({ecommerce:null});push({event:'purchase',ecommerce:{transaction_id:o.id,currency:'EUR',value:net,coupon:duo?'DUO':undefined,shipping:ship,items:o.lines.map(function(l){return item(bySlug(l.slug),l.size,l.qty)})}});
     sent.push(o.id);LS.setItem('achats_envoyes',JSON.stringify(sent));
   }
   setCart([]);
@@ -150,7 +165,17 @@ function home(){
   btn.onclick=function(){timer?stop():start()};
 }
 
+function lead(){
+  var f=$('#lead'); if(!f)return; var started=false;
+  f.addEventListener('input',function(){if(!started){started=true;push({event:'form_start',form_name:'rappel'})}});
+  f.onsubmit=function(e){e.preventDefault();var first=null;
+    $$('#lead input[required],#lead select[required]').forEach(function(i){var er=$('#'+i.id+'-err');if(!i.value.trim()){i.setAttribute('aria-invalid','true');if(er)er.textContent='Ce champ est obligatoire.';if(!first)first=i}else{i.removeAttribute('aria-invalid');if(er)er.textContent=''}});
+    if(first){first.focus();return}
+    push({event:'generate_lead',form_name:'rappel',besoin:$('#l-besoin').value,optin_partenaires:false});
+    f.outerHTML='<p class="notice" role="status">Merci, une styliste vous rappelle sous 48 h (démonstration : aucun appel ne sera passé).</p>'};
+}
+
 var pg=document.body.dataset.page;
-({pdp:pdp,plp:plp,search:search,cart:cart,checkout:checkout,confirm:confirm,home:home}[pg]||function(){})();
+({lead:lead,pdp:pdp,plp:plp,search:search,cart:cart,checkout:checkout,confirm:confirm,home:home}[pg]||function(){})();
 window.__push = push;
 })();

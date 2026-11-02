@@ -1,0 +1,27 @@
+{
+  "source": "verlune-web",
+  "consentFiltering": true,
+  "destinations": [
+    {
+      "name": "Meta Conversions API",
+      "enabled": true,
+      "requiredConsent": [
+        "ads"
+      ]
+    },
+    {
+      "name": "Google Ads Enhanced Conversions",
+      "enabled": true,
+      "requiredConsent": [
+        "ads"
+      ]
+    },
+    {
+      "name": "Entrepôt de données",
+      "enabled": true,
+      "requiredConsent": [
+        "analytics"
+      ]
+    }
+  ]
+}
