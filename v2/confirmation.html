@@ -23,15 +23,16 @@
     <label for="q-top" class="sr-only">Rechercher un produit</label>
     <input id="q-top" name="q" type="search" placeholder="Rechercher">
   </form>
+  <a class="cart-link" id="account-link" href="compte.html">Mon compte</a>
   <a class="cart-link" href="panier.html"><span aria-hidden="true">Panier (<span id="cart-count">0</span>)</span><span id="cart-sr" class="sr-only">Panier, 0 article</span></a>
 </header>
 <main id="contenu" tabindex="-1">
 <div id="promo-slot" style="min-height:120px"></div>
-<h1>Merci pour votre commande</h1><p id="conf">Commande n° <strong id="order-id"></strong> enregistrée (simulation). Aucun paiement n'a été effectué.</p>
+<h1>Merci pour votre commande</h1><p id="conf">Commande n° <strong id="order-id"></strong> enregistrée (simulation). Aucun paiement n'a été effectué.</p><p>Total : <strong id="paid"></strong></p><section id="after-signup" hidden aria-labelledby="t-after" style="margin-top:24px"><h2 id="t-after">Créer un compte pour suivre vos commandes (facultatif)</h2><form id="signup" novalidate><label for="su-prenom">Prénom <span aria-hidden="true">*</span><span class="sr-only">(obligatoire)</span></label><input id="su-prenom" type="text" required autocomplete="given-name" aria-describedby="su-prenom-err"><div id="su-prenom-err" class="err"></div><label for="su-email">E-mail</label><input id="su-email" type="email" readonly autocomplete="email" aria-describedby="su-email-err"><div id="su-email-err" class="err"></div><label for="su-pwd">Mot de passe <span aria-hidden="true">*</span><span class="sr-only">(obligatoire)</span></label><p id="su-pwd-rules" class="info" style="margin:0 0 4px">Règles : Au moins 8 caractères, dont une majuscule et un chiffre.</p><div style="display:flex;gap:8px;max-width:420px"><input id="su-pwd" type="password" required autocomplete="new-password" aria-describedby="su-pwd-rules su-pwd-err"><button type="button" class="btn secondary show-pwd" aria-controls="su-pwd">Afficher</button></div><div id="su-pwd-err" class="err"></div><button type="submit" class="btn" style="margin-top:10px">Créer mon compte</button></form><p id="su-ok" role="status"></p></section>
 <img src="img/separateur.svg" alt="" width="600" height="20" style="margin:24px auto;opacity:.6">
 </main>
 <footer class="site">
-  <p><a href="cgv.html">CGV</a> <a href="mentions.html">Mentions légales</a> <a href="livraison.html">Livraison et retours</a> <a href="rappel.html">Être rappelé par une styliste</a> <a href="accessibilite.html">Accessibilité : partiellement conforme</a></p>
+  <p><a href="cgv.html">CGV</a> <a href="mentions.html">Mentions légales</a> <a href="livraison-retours.html">Livraison et retours</a> <a href="rappel.html">Être rappelé par une styliste</a> <a href="accessibilite.html">Accessibilité : partiellement conforme</a></p>
   <form onsubmit="return false"><label for="nl">Recevoir la lettre d'information</label><input id="nl" type="email" autocomplete="email" style="max-width:260px"> <button type="submit" class="btn secondary">S'inscrire</button></form>
   <p class="info">© 2026 Verlune, marque fictive créée pour tester des outils d'audit.</p>
 </footer>

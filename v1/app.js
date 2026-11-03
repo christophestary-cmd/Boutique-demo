@@ -123,7 +123,7 @@ function cart(){
     return '<tr><td>'+p.name+'<br><span class="info">Taille '+l.size+'</span></td><td>'+l.qty+'</td><td>'+fmt(lt)+'</td><td><button class="icon-sm" data-i="'+i+'">✕</button></td></tr>'}).join('');
   var qty=c.reduce(function(a,l){return a+l.qty},0), duo=qty>=2?Math.round(total*10)/100:0;
   var ship=(total-duo)>=60?0:4.9; $('#ship').textContent=ship?fmt(ship):'Offerte'; $('#duo').textContent=duo?'- '+fmt(duo):'—';
-  function tot(){var g=$('#gift')&&$('#gift').checked?2.9:0;$('#total').textContent=fmt(total-duo+ship+g)} tot(); var gf=$('#gift'); if(gf)gf.onchange=tot;
+  function tot(){var g=$('#gift')&&$('#gift').checked?2.9:0;SS.setItem('cadeau',g?'1':'0');$('#total').textContent=fmt(total-duo+ship+g)} tot(); var gf=$('#gift'); if(gf)gf.onchange=tot;
   $$('.icon-sm').forEach(function(b){b.onclick=function(){var c=getCart();c.splice(+b.dataset.i,1);setCart(c);cart()}});
   push({event:'view_cart',ecommerce:{currency:'EUR',value:total,items:c.map(function(l){return itemStr(bySlug(l.slug),l.size,l.qty,bySlug(l.slug).price)})}});
   push({event:'begin_checkout',ecommerce:{currency:'EUR',value:total,items:c.map(function(l){return itemStr(bySlug(l.slug),l.size,l.qty,bySlug(l.slug).price)})}});
@@ -135,16 +135,18 @@ function cart(){
 }
 function checkout(){
   var c=getCart(); if(!c.length){location.href='panier.html';return}
-  $('#form').onsubmit=function(e){e.preventDefault();var ok=true;
-    $$('#form input[required]').forEach(function(i){if(!i.value.trim()){i.classList.add('field-error');ok=false}else i.classList.remove('field-error')});
-    if(!ok)return; var mail=$('#email').value.trim();
-    location.href='confirmation.html?email='+encodeURIComponent(mail)+'&commande=ok'};
+  recap1(false);
+  var m=moi();
+  if(m){$('#id-new').hidden=true;$('#id-known').hidden=false;$('#known-name').textContent=m.prenom;
+    $('#go-known').onclick=function(){location.href='livraison.html?email='+encodeURIComponent(m.email)};return}
+  signup1($('#form'),function(a){LS.setItem('session',a.email);location.href='livraison.html?email='+encodeURIComponent(a.email)});
 }
 function confirm(){
   var c=getCart(); var list=c.length?c:JSON.parse(SS.getItem('dernier_panier')||'[]');
   if(c.length)SS.setItem('dernier_panier',JSON.stringify(c));
   var ttc=list.reduce(function(a,l){return a+bySlug(l.slug).price*l.qty},0), ht=ttc/1.2;
   push({event:'purchase',ecommerce:{transaction_id:'12345',value:ht.toFixed(2).replace('.',','),items:list.map(function(l){var p=bySlug(l.slug);return itemStr(p,l.size,l.qty,p.price/1.2)})}});
+  var tn=tget(),tt=calc(list),sp=shipFor(tn.livraison||'domicile',tt.net),pd=$('#paid');if(pd)pd.textContent=fmt(r2(tt.net+sp+tt.gift));
   setCart([]);
 }
 
@@ -153,6 +155,54 @@ function home(){
   var end=Date.now()+15*60*1000, cd=$('#countdown');
   setInterval(function(){var s=Math.max(0,Math.floor((end-Date.now())/1000));cd.textContent='Fin de l’offre dans '+String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')},1000);
 }
+
+function tget(){try{return JSON.parse(SS.getItem('tunnel')||'{}')||{}}catch(e){return {}}}
+function tset(o){SS.setItem('tunnel',JSON.stringify(o))}
+function comptes(){try{return JSON.parse(LS.getItem('comptes')||'{}')||{}}catch(e){return {}}}
+function setComptes(c){LS.setItem('comptes',JSON.stringify(c))}
+function r2(n){return Math.round(n*100)/100}
+function calc(lines){var sub=lines.reduce(function(a,l){return a+bySlug(l.slug).price*l.qty},0),q=lines.reduce(function(a,l){return a+l.qty},0),duo=q>=2?Math.round(sub*10)/100:0;return {sub:r2(sub),duo:duo,net:r2(sub-duo),gift:SS.getItem('cadeau')==='1'?2.9:0}}
+function shipFor(mode,net){return mode==='relais'?2.9:(net>=60?0:4.9)}
+function getQ(k){return new URLSearchParams(location.search).get(k)}
+function lineList(c){return '<ul>'+c.map(function(l){var p=bySlug(l.slug);return '<li>'+p.name+' ('+l.size+') × '+l.qty+' : '+fmt(p.price*l.qty)+'</li>'}).join('')+'</ul>'}
+
+function moi(){var e=LS.getItem('session');if(!e)return null;return comptes()[e]||null}
+function header(){var a=$('#account-link'),m=moi();if(a&&m)a.textContent='Bonjour, '+m.prenom}
+header();
+var ME=moi(); if(ME)push({user_id:ME.email});
+function pwdOk(p){return p.length>=8&&/[A-Z]/.test(p)&&/[0-9]/.test(p)}
+function signup1(f,after){if(!f)return;var b=$('button[type=submit]',f),msg=$('.su-msg',f);
+  b.addEventListener('click',function(){push({event:'sign_up',method:'email',user_email:$('#su-email').value.trim()})});
+  f.onsubmit=function(e){e.preventDefault();var ok=true;
+    $$('input[required]',f).forEach(function(i){if(!i.value.trim()){i.classList.add('field-error');ok=false}else i.classList.remove('field-error')});
+    var em=$('#su-email').value.trim().toLowerCase(),pw=$('#su-pwd').value;
+    if(ok&&(!pwdOk(pw)||comptes()[em]))ok=false;
+    if(!ok){f.reset();msg.textContent='Inscription impossible. Le mot de passe doit contenir au moins 8 caractères, dont une majuscule et un chiffre.';return}
+    var c=comptes();c[em]={prenom:$('#su-prenom').value.trim(),nom:$('#su-nom').value.trim(),email:em,motdepasse:pw};setComptes(c);after(c[em])}}
+function login1(f){if(!f)return;f.onsubmit=function(e){e.preventDefault();var em=$('#li-email').value.trim().toLowerCase(),a=comptes()[em];
+  if(!a||a.motdepasse!==$('#li-pwd').value){f.reset();$('#li-msg').textContent='Identifiants incorrects.';return}
+  LS.setItem('session',em);location.href=getQ('retour')==='commande'?'commande.html':'compte.html'}}
+function account(){var m=moi();
+  if(m){$('#acc-out').hidden=true;$('#acc-in').hidden=false;$('#acc-name').textContent=m.prenom;$('#logout').onclick=function(){LS.setItem('session','');location.href='compte.html'};return}
+  login1($('#login'));signup1($('#signup'),function(){$('#signup').reset();$('.su-msg').textContent='Compte créé. Vous pouvez vous connecter.'})}
+
+function recap1(full){var z=$('#recap');if(!z)return 0;var c=getCart(),t=calc(c),h='<h2>Votre commande</h2>'+lineList(c)+'<p>Sous-total : '+fmt(t.net)+'</p>',tot=t.net;
+  if(full){var s=shipFor(tget().livraison||'domicile',t.net);tot=r2(t.net+s+t.gift+1.5);
+    h+='<p>Livraison : '+(s?fmt(s):'offerte')+'</p>'+(t.gift?'<p>Emballage cadeau : '+fmt(t.gift)+'</p>':'')+'<p>Frais de service : '+fmt(1.5)+'</p>'}
+  z.innerHTML=h+'<p class="price">Total : '+fmt(tot)+'</p>';return tot}
+function shipping(){var c=getCart();if(!c.length){location.href='panier.html';return}recap1(false);
+  $('#form').onsubmit=function(e){e.preventDefault();var ok=true;
+    $$('#form input[required]').forEach(function(i){if(!i.value.trim()){i.classList.add('field-error');ok=false}else i.classList.remove('field-error')});
+    var md=$('input[name=mode]:checked');if(!ok||!md){$('#msg').textContent='Formulaire incomplet.';return}
+    var x=tget();['prenom','nom','adresse','cp','ville'].forEach(function(k){x[k]=$('#'+k).value.trim()});x.livraison=md.value;tset(x);location.href='paiement.html'}}
+function payment(){var c=getCart();if(!c.length){location.href='panier.html';return}
+  push({event:'add_payment_info',ecommerce:{currency:'EUR',value:calc(c).net,items:c.map(function(l){var p=bySlug(l.slug);return itemStr(p,l.size,l.qty,p.price)})}});
+  var tot=recap1(true);
+  $('#form').onsubmit=function(e){e.preventDefault();var md=$('input[name=pay]:checked');if(!md){$('#msg').textContent='Choisissez un moyen de paiement.';return}
+    var x=tget();x.paiement=md.value;x.partenaires=$('#part').checked;x.total=tot;tset(x);location.href='banque.html'}}
+function bank(){var x=tget();if(!x.total){$('#bank-zone').innerHTML='<p>Aucun paiement en attente.</p>';return}
+  $('#amount').textContent=fmt(x.total);
+  $('#validate').onclick=function(){location.href='confirmation.html?utm_source=paiement-securise&utm_medium=referral'}}
 
 function lead(){
   var f=$('#lead'); if(!f)return;
@@ -164,6 +214,6 @@ function lead(){
 }
 
 var pg=document.body.dataset.page;
-({lead:lead,pdp:pdp,plp:plp,search:search,cart:cart,checkout:checkout,confirm:confirm,home:home}[pg]||function(){})();
+({lead:lead,pdp:pdp,plp:plp,search:search,cart:cart,checkout:checkout,confirm:confirm,home:home,account:account,shipping:shipping,payment:payment,bank:bank}[pg]||function(){})();
 window.__push = push;
 })();

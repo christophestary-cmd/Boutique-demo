@@ -134,23 +134,26 @@ function cart(){
 }
 function checkout(){
   var c=getCart(); if(!c.length){location.href='panier.html';return}
-  var total=c.reduce(function(a,l){return a+bySlug(l.slug).price*l.qty},0), q=c.reduce(function(a,l){return a+l.qty},0), duo=q>=2?Math.round(total*10)/100:0;
-  push({ecommerce:null});push({event:'begin_checkout',ecommerce:{currency:'EUR',value:total-duo,coupon:duo?'DUO':undefined,items:c.map(function(l){return item(bySlug(l.slug),l.size,l.qty)})}});
-  $('#form').onsubmit=function(e){e.preventDefault();var first=null;
-    $$('#form input[required]').forEach(function(i){var er=$('#'+i.id+'-err');if(!i.value.trim()){i.setAttribute('aria-invalid','true');if(er)er.textContent='Ce champ est obligatoire.';if(!first)first=i}else{i.removeAttribute('aria-invalid');if(er)er.textContent=''}});
-    if(first){first.focus();return}
-    var id='VL-'+Date.now().toString(36).toUpperCase(); SS.setItem('commande',JSON.stringify({id:id,lines:c}));
-    location.href='confirmation.html'};
+  var t=calc(c);
+  push({ecommerce:null});push({event:'begin_checkout',ecommerce:{currency:'EUR',value:t.net,coupon:t.duo?'DUO':undefined,items:c.map(function(l){return item(bySlug(l.slug),l.size,l.qty)})}});
+  recap();
+  var m=moi();
+  if(m){$('#id-guest').hidden=true;$('#id-known').hidden=false;$('#known-name').textContent=m.prenom;
+    $('#go-known').onclick=function(){var o=tget();o.mode='compte';o.email='';tset(o);location.href='livraison.html'};return}
+  $('#form').onsubmit=function(e){e.preventDefault();var i=$('#email'),v=i.value.trim();
+    if(!mailOk(v)){fieldErr(i,v?'Saisissez une adresse e-mail valide, par exemple nom@exemple.fr.':'Ce champ est obligatoire.');i.focus();return}
+    fieldErr(i,'');var o=tget();o.mode='invite';o.email=v;tset(o);location.href='livraison.html'};
 }
 function confirm(){
   var o=null;try{o=JSON.parse(SS.getItem('commande'))}catch(e){}
   if(!o){$('#conf').textContent='Aucune commande en cours.';return}
-  $('#order-id').textContent=o.id;
+  $('#order-id').textContent=o.id; confirmExtras(o);
   var sent=JSON.parse(LS.getItem('achats_envoyes')||'[]');
   if(sent.indexOf(o.id)===-1){
-    var total=o.lines.reduce(function(a,l){return a+bySlug(l.slug).price*l.qty},0), q=o.lines.reduce(function(a,l){return a+l.qty},0), duo=q>=2?Math.round(total*10)/100:0, net=total-duo;
-    var ship=net>=60?0:4.9;
-    push({ecommerce:null});push({event:'purchase',ecommerce:{transaction_id:o.id,currency:'EUR',value:net,coupon:duo?'DUO':undefined,shipping:ship,items:o.lines.map(function(l){return item(bySlug(l.slug),l.size,l.qty)})}});
+    var t=calc(o.lines), ship=shipFor(o.livraison||'domicile',t.net);
+    var ec={transaction_id:o.id,currency:'EUR',value:t.net,tax:r2(t.net-t.net/1.2),shipping:ship,coupon:t.duo?'DUO':undefined,items:o.lines.map(function(l){return item(bySlug(l.slug),l.size,l.qty)})};
+    if(typeof o.new_customer==='boolean')ec.new_customer=o.new_customer;
+    push({ecommerce:null});push({event:'purchase',ecommerce:ec});
     sent.push(o.id);LS.setItem('achats_envoyes',JSON.stringify(sent));
   }
   setCart([]);
@@ -165,6 +168,87 @@ function home(){
   btn.onclick=function(){timer?stop():start()};
 }
 
+function tget(){try{return JSON.parse(SS.getItem('tunnel')||'{}')||{}}catch(e){return {}}}
+function tset(o){SS.setItem('tunnel',JSON.stringify(o))}
+function comptes(){try{return JSON.parse(LS.getItem('comptes')||'{}')||{}}catch(e){return {}}}
+function setComptes(c){LS.setItem('comptes',JSON.stringify(c))}
+function r2(n){return Math.round(n*100)/100}
+function calc(lines){var sub=lines.reduce(function(a,l){return a+bySlug(l.slug).price*l.qty},0),q=lines.reduce(function(a,l){return a+l.qty},0),duo=q>=2?Math.round(sub*10)/100:0;return {sub:r2(sub),duo:duo,net:r2(sub-duo),gift:SS.getItem('cadeau')==='1'?2.9:0}}
+function shipFor(mode,net){return mode==='relais'?2.9:(net>=60?0:4.9)}
+function getQ(k){return new URLSearchParams(location.search).get(k)}
+function lineList(c){return '<ul>'+c.map(function(l){var p=bySlug(l.slug);return '<li>'+p.name+' ('+l.size+') × '+l.qty+' : '+fmt(p.price*l.qty)+'</li>'}).join('')+'</ul>'}
+
+function moi(){var id=LS.getItem('session');if(!id)return null;var c=comptes();for(var k in c){if(c[k].id===id)return c[k]}return null}
+function header(){var a=$('#account-link'),m=moi();if(a&&m)a.textContent='Bonjour, '+m.prenom}
+header();
+var ME=moi(); if(ME)push({user_id:ME.id});
+function fieldErr(i,msg){var er=$('#'+i.id+'-err');if(msg){i.setAttribute('aria-invalid','true');if(er)er.textContent=msg}else{i.removeAttribute('aria-invalid');if(er)er.textContent=''}}
+function pwdOk(p){return p.length>=8&&/[A-Z]/.test(p)&&/[0-9]/.test(p)}
+function mailOk(m){return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(m)}
+function sha(s){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)).then(function(b){return Array.prototype.map.call(new Uint8Array(b),function(x){return ('0'+x.toString(16)).slice(-2)}).join('')})}
+function toggles(){$$('.show-pwd').forEach(function(b){b.onclick=function(){var i=$('#'+b.getAttribute('aria-controls')),v=i.type==='password';i.type=v?'text':'password';b.textContent=v?'Masquer':'Afficher'}})}
+function signupForm(f,done,orders){if(!f)return;toggles();
+  f.onsubmit=function(e){e.preventDefault();var first=null,p=$('#su-prenom'),m=$('#su-email'),w=$('#su-pwd'),em=m.value.trim().toLowerCase();
+    function bad(i,msg){fieldErr(i,msg);if(msg&&!first)first=i}
+    bad(p,p.value.trim()?'':'Ce champ est obligatoire.');
+    bad(m,!em?'Ce champ est obligatoire.':(!mailOk(em)?'Saisissez une adresse e-mail valide, par exemple nom@exemple.fr.':(comptes()[em]?'Un compte existe déjà avec cet e-mail. Connectez-vous.':'')));
+    bad(w,!w.value?'Ce champ est obligatoire.':(pwdOk(w.value)?'':'Le mot de passe ne respecte pas les règles indiquées.'));
+    if(first){first.focus();return}
+    var sel=rid()+rid();
+    sha(sel+w.value).then(function(h){var c=comptes(),a={id:'VLC-'+rid().toUpperCase(),prenom:p.value.trim(),email:em,sel:sel,empreinte:h,commandes:orders||[]};c[em]=a;setComptes(c);
+      push({ecommerce:null});push({event:'sign_up',method:'email'});done(a)})
+    .catch(function(){fieldErr(w,'Création du compte impossible dans ce navigateur.');w.focus()})}}
+function loginForm(f){if(!f)return;
+  f.onsubmit=function(e){e.preventDefault();var m=$('#li-email'),w=$('#li-pwd'),g=$('#li-err'),em=m.value.trim().toLowerCase();g.textContent='';
+    fieldErr(m,em?'':'Ce champ est obligatoire.');fieldErr(w,w.value?'':'Ce champ est obligatoire.');
+    if(!em){m.focus();return} if(!w.value){w.focus();return}
+    var a=comptes()[em];function fail(){g.textContent='E-mail ou mot de passe incorrect.';w.value='';w.focus()}
+    if(!a){fail();return}
+    sha(a.sel+w.value).then(function(h){if(h!==a.empreinte){fail();return}
+      LS.setItem('session',a.id);push({ecommerce:null});push({event:'login',method:'email',user_id:a.id});
+      location.href=getQ('retour')==='commande'?'commande.html':'compte.html'})}}
+function account(){var m=moi();
+  if(m){$('#acc-out').hidden=true;$('#acc-in').hidden=false;$('#acc-name').textContent=m.prenom;var n=m.commandes.length;
+    $('#acc-orders').textContent=n+' commande'+(n>1?'s':'')+' passée'+(n>1?'s':'')+' depuis ce navigateur.';
+    $('#logout').onclick=function(){LS.setItem('session','');location.href='compte.html'};return}
+  toggles();loginForm($('#login'));
+  signupForm($('#signup'),function(a){$('#signup').reset();$('#su-ok').textContent='Votre compte est créé. Connectez-vous avec votre e-mail et votre mot de passe.';$('#li-email').value=a.email;$('#li-pwd').focus()})}
+
+function ecoItems(c){return c.map(function(l){return item(bySlug(l.slug),l.size,l.qty)})}
+function recap(){var z=$('#recap');if(!z)return 0;var c=getCart(),t=calc(c),mode=tget().livraison||'domicile',s=shipFor(mode,t.net),tot=r2(t.net+s+t.gift);
+  z.innerHTML='<h2 style="margin-top:0">Récapitulatif</h2>'+lineList(c)+'<p>Sous-total : '+fmt(t.sub)+'</p>'+(t.duo?'<p>Remise DUO : - '+fmt(t.duo)+'</p>':'')+
+    '<p>Livraison '+(mode==='relais'?'en point relais':'à domicile')+' : '+(s?fmt(s):'offerte')+'</p>'+(t.gift?'<p>Emballage cadeau : '+fmt(t.gift)+'</p>':'')+'<p class="price">Total : '+fmt(tot)+'</p>';
+  return tot}
+function shipping(){var c=getCart();if(!c.length){location.href='panier.html';return}var o=tget();if(!o.mode){location.href='commande.html';return}
+  var F=['prenom','nom','adresse','cp','ville'],m=moi();
+  F.forEach(function(k){if(o[k])$('#'+k).value=o[k]}); if(!o.prenom&&m)$('#prenom').value=m.prenom;
+  if(o.livraison){var r=$('#m-'+o.livraison);if(r)r.checked=true}else{o.livraison='domicile';tset(o)}
+  $$('input[name=mode]').forEach(function(r){r.onchange=function(){var x=tget();x.livraison=r.value;tset(x);recap()}});
+  recap();
+  $('#form').onsubmit=function(e){e.preventDefault();var first=null;
+    F.forEach(function(k){var i=$('#'+k);if(!i.value.trim()){fieldErr(i,'Ce champ est obligatoire.');if(!first)first=i}else fieldErr(i,'')});
+    if(first){first.focus();return}
+    var md=$('input[name=mode]:checked').value,x=tget();F.forEach(function(k){x[k]=$('#'+k).value.trim()});x.livraison=md;tset(x);
+    var t=calc(c);push({ecommerce:null});push({event:'add_shipping_info',ecommerce:{currency:'EUR',value:t.net,coupon:t.duo?'DUO':undefined,shipping_tier:md==='relais'?'point_relais':'domicile',items:ecoItems(c)}});
+    location.href='paiement.html'}}
+function payment(){var c=getCart();if(!c.length){location.href='panier.html';return}var o=tget();if(!o.adresse){location.href='livraison.html';return}
+  recap();
+  $('#form').onsubmit=function(e){e.preventDefault();var md=$('input[name=pay]:checked'),me=$('#pay-err');
+    if(!md){me.textContent='Choisissez un moyen de paiement.';$('#p-carte').focus();return}me.textContent='';
+    var t=calc(c),m=moi();push({ecommerce:null});push({event:'add_payment_info',ecommerce:{currency:'EUR',value:t.net,coupon:t.duo?'DUO':undefined,payment_type:md.value==='paypal'?'PayPal':'Carte',items:ecoItems(c)}});
+    SS.setItem('commande_a_payer',JSON.stringify({id:'VL-'+Date.now().toString(36).toUpperCase(),lines:c,livraison:o.livraison||'domicile',paiement:md.value,cadeau:t.gift>0,compte:m?m.id:null,lettre:$('#news').checked}));
+    location.href='banque.html'}}
+function bank(){var o=null;try{o=JSON.parse(SS.getItem('commande_a_payer')||'null')}catch(e){}
+  if(!o){$('#bank-zone').innerHTML='<p>Aucun paiement en attente.</p>';return}
+  var t=calc(o.lines),s=shipFor(o.livraison,t.net);$('#amount').textContent=fmt(r2(t.net+s+(o.cadeau?2.9:0)));
+  $('#validate').onclick=function(){
+    if(o.compte){var c=comptes();for(var k in c){var a=c[k];if(a.id===o.compte&&a.commandes.indexOf(o.id)===-1){o.new_customer=a.commandes.length===0;a.commandes.push(o.id)}}setComptes(c)}
+    SS.setItem('commande',JSON.stringify(o));SS.setItem('commande_a_payer','');location.href='confirmation.html'}}
+function confirmExtras(o){var t=calc(o.lines),s=shipFor(o.livraison||'domicile',t.net),g=o.cadeau?2.9:0,pd=$('#paid');if(pd)pd.textContent=fmt(r2(t.net+s+g));SS.setItem('cadeau','0');
+  var z=$('#after-signup'),em=tget().email||'';
+  if(z&&!o.compte&&!moi()&&em&&!comptes()[em.toLowerCase()]){z.hidden=false;$('#su-email').value=em;
+    signupForm($('#signup'),function(){$('#signup').hidden=true;$('#su-ok').textContent='Votre compte est créé et votre commande y est rattachée. Connectez-vous depuis « Mon compte ».'},[o.id])}}
+
 function lead(){
   var f=$('#lead'); if(!f)return; var started=false;
   f.addEventListener('input',function(){if(!started){started=true;push({event:'form_start',form_name:'rappel'})}});
@@ -176,6 +260,6 @@ function lead(){
 }
 
 var pg=document.body.dataset.page;
-({lead:lead,pdp:pdp,plp:plp,search:search,cart:cart,checkout:checkout,confirm:confirm,home:home}[pg]||function(){})();
+({lead:lead,pdp:pdp,plp:plp,search:search,cart:cart,checkout:checkout,confirm:confirm,home:home,account:account,shipping:shipping,payment:payment,bank:bank}[pg]||function(){})();
 window.__push = push;
 })();
